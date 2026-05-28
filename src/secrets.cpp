@@ -3,8 +3,8 @@
 
 // Configurações do WiFi
 
-const char *WIFI_SSID = "Wokwi-GUEST";
-const char *WIFI_SENHA = "";
+const char *WIFI_SSID = "SALA 09";
+const char *WIFI_SENHA = "info@134";
 
 //============================ MQTT ============================//
 
