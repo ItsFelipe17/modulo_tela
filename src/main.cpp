@@ -1,17 +1,19 @@
 #include <Arduino.h>
-#define TX_PIN 4
-#define BOTAO_BOOT 0
+#include <ArduinoJson.h>
+#include "WiFiManager.h"
+#include "MQTTManager.h"
+#include "DebugManager.h"
 
-// =====================================
-// HEADER FIXO
-// =====================================
+// ===== PINO RF =====
+constexpr uint8_t TX_PIN = 4;
 
+// ===== TÓPICO MQTT =====
+const char TOPICO_COMANDO[] =
+"senai134/kauac/esp32/display";
+
+// ===== RF =====
 const char* HEADER =
 "101000111100110101001110000010100000000100000000";
-
-// =====================================
-// COMANDOS
-// =====================================
 
 const char* CMD_PARAR =
 "00100011010010011";
@@ -22,16 +24,86 @@ const char* CMD_SUBIR =
 const char* CMD_DESCER =
 "01000011011010011";
 
-// =====================================
-// FRAME EXTRA
-// =====================================
-
 const char* FRAME_EXTRA =
 "00100100010010101";
 
-// =====================================
-// BIT 0
-// =====================================
+// ===== PROTÓTIPOS =====
+void tratarMensagemRecebida(
+    const char *topico,
+    const String &mensagem
+);
+
+void bit0();
+void bit1();
+void enviarBits(const char* bits);
+void enviarPacote(const char* comando);
+
+void subir();
+void descer();
+void parar();
+
+// =====================================================
+
+void setup()
+{
+    configurarDebug();
+
+    pinMode(TX_PIN, OUTPUT);
+
+    conectarWiFi();
+
+    configurarMQTT();
+
+    registrarCallbackMensagem(tratarMensagemRecebida);
+
+    conectarMQTT();
+
+    debugInfo("Sistema pronto");
+}
+
+void loop()
+{
+    garantirWiFiConectado();
+
+    garantirMQTTConectado();
+
+    loopMQTT();
+}
+
+// =====================================================
+
+void tratarMensagemRecebida(
+    const char *topico,
+    const String &mensagem
+)
+{
+    debugInfo("Mensagem recebida:");
+    debugInfo(mensagem);
+
+    if (strcmp(topico, TOPICO_COMANDO) != 0)
+    {
+        return;
+    }
+
+    if (mensagem == "subir")
+    {
+        subir();
+    }
+    else if (mensagem == "descer")
+    {
+        descer();
+    }
+    else if (mensagem == "parar")
+    {
+        parar();
+    }
+    else
+    {
+        debugErro("Comando inválido");
+    }
+}
+
+// =====================================================
 
 void bit0()
 {
@@ -42,10 +114,6 @@ void bit0()
     delayMicroseconds(1050);
 }
 
-// =====================================
-// BIT 1
-// =====================================
-
 void bit1()
 {
     digitalWrite(TX_PIN, HIGH);
@@ -54,10 +122,6 @@ void bit1()
     digitalWrite(TX_PIN, LOW);
     delayMicroseconds(350);
 }
-
-// =====================================
-// ENVIA BITS
-// =====================================
 
 void enviarBits(const char* bits)
 {
@@ -78,20 +142,15 @@ void enviarBits(const char* bits)
     digitalWrite(TX_PIN, LOW);
 }
 
-// =====================================
-// ENVIA PACOTE COMPLETO
-// =====================================
-
 void enviarPacote(const char* comando)
 {
-    String pacote = String(HEADER) + comando;
+    String pacote =
+        String(HEADER) + comando;
 
     enviarBits(pacote.c_str());
 }
 
-// =====================================
-// PARAR
-// =====================================
+// =====================================================
 
 void parar()
 {
@@ -99,10 +158,6 @@ void parar()
 
     Serial.println("PARAR");
 }
-
-// =====================================
-// SUBIR
-// =====================================
 
 void subir()
 {
@@ -115,10 +170,6 @@ void subir()
     Serial.println("SUBIR");
 }
 
-// =====================================
-// DESCER
-// =====================================
-
 void descer()
 {
     enviarPacote(CMD_DESCER);
@@ -129,36 +180,3 @@ void descer()
 
     Serial.println("DESCER");
 }
-
-// =====================================
-// SETUP
-// =====================================
-
-void setup()
-{
-    Serial.begin(115200);
-
-    pinMode(TX_PIN, OUTPUT);
-
-    // botão BOOT
-    pinMode(BOTAO_BOOT, INPUT_PULLUP);
-
-    Serial.println("Pronto");
-}
-
-// =====================================
-// LOOP
-// =====================================
-
-void loop()
-{
-    // botão apertado
-    if (digitalRead(BOTAO_BOOT) == LOW)
-    {
-        subir();
-
-        // debounce
-        delay(500);
-    }
-}
-
