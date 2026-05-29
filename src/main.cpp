@@ -1,52 +1,38 @@
 #include <Arduino.h>
+#include "TelaProjecaoRF.h"
 #include <ArduinoJson.h>
 #include "WiFiManager.h"
 #include "MQTTManager.h"
 #include "DebugManager.h"
 
-// ===== PINO RF =====
-constexpr uint8_t TX_PIN = 5;
+const uint8_t PINO_TX = 7;
+const uint8_t PINO_RX = 6;
 
 // ===== TÓPICO MQTT =====
 const char TOPICO_COMANDO[] = "senai134/esp32/projetor";
 
-// ===== RF =====
-const char *HEADER = "101000111100110101001110000010100000000100000000";
-
-const char *CMD_PARAR = "00100011010010011";
-
-const char *CMD_SUBIR = "00001011001100011";
-
-const char *CMD_DESCER = "01000011011010011";
-
-const char *FRAME_EXTRA = "00100100010010101";
-
-// ===== PROTÓTIPOS =====
+// ===== PROTÓTIPOS ===== mqtt
 void tratarMensagemRecebida(const char *, const String &);
 void tratarJsonComando(const String &);
 
-void bit0();
-void bit1();
-void enviarBits(const char *bits);
-void enviarPacote(const char *comando);
 
-void subir();
-void descer();
-void parar();
+TelaProjecaoRF telaRF(PINO_TX, PINO_RX);
 
-// =====================================================
+// Insira aqui o endereco capturado no exemplo anterior
+const uint8_t ENDERECO_DA_MINHA_TELA[5] = {0xCD, 0x4E, 0x0A, 0x01, 0x00};
 
 void setup()
 {
-  pinMode(TX_PIN, OUTPUT);
-
   conectarWiFi();
   configurarMQTT();
   configurarDebug();
   conectarMQTT();
   registrarCallbackMensagem(tratarMensagemRecebida);
-
   debugInfo("Sistema pronto");
+    Serial.begin(9600);
+    telaRF.begin(&Serial); //o que está entre parênteses é o argumento que está sendo passado para a função
+    telaRF.setInverterSinal(true); // Ajuste conforme seu hardware
+    
 }
 
 void loop()
@@ -54,10 +40,8 @@ void loop()
   garantirWiFiConectado();
   garantirMQTTConectado();
   loopMQTT();
+  telaRF.update(); //Obrigatório 
 }
-
-// =====================================================
-
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
   if (strcmp(topico, TOPICO_COMANDO) != 0)
@@ -86,94 +70,21 @@ void tratarJsonComando(const String &mensagem)
 
   if (comando == "subir")
   {
-    subir();
+    telaRF.enviarCima(ENDERECO_DA_MINHA_TELA);
   }
   else if (comando == "descer")
   {
-    descer();
+    telaRF.enviarBaixo(ENDERECO_DA_MINHA_TELA);
   }
   else if (comando == "parar")
   {
-    parar();
+    telaRF.enviarParar(ENDERECO_DA_MINHA_TELA);
   }
   else
   {
     debugErro("Comando inválido");
   }
-}
-// =====================================================
 
-void bit0()
-{
-  digitalWrite(TX_PIN, HIGH);
-  delayMicroseconds(350);
 
-  digitalWrite(TX_PIN, LOW);
-  delayMicroseconds(1050);
-}
 
-void bit1()
-{
-  digitalWrite(TX_PIN, HIGH);
-  delayMicroseconds(1050);
-
-  digitalWrite(TX_PIN, LOW);
-  delayMicroseconds(350);
-}
-
-void enviarBits(const char *bits)
-{
-  while (*bits)
-  {
-    if (*bits == '1')
-    {
-      bit1();
-    }
-    else
-    {
-      bit0();
-    }
-
-    bits++;
-  }
-
-  digitalWrite(TX_PIN, LOW);
-}
-
-void enviarPacote(const char *comando)
-{
-  String pacote = String(HEADER) + comando;
-
-  enviarBits(pacote.c_str());
-}
-
-// =====================================================
-
-void parar()
-{
-  enviarPacote(CMD_PARAR);
-
-  Serial.println("PARAR");
-}
-
-void subir()
-{
-  enviarPacote(CMD_SUBIR);
-
-  delay(10);
-
-  enviarPacote(FRAME_EXTRA);
-
-  Serial.println("SUBIR");
-}
-
-void descer()
-{
-  enviarPacote(CMD_DESCER);
-
-  delay(10);
-
-  enviarPacote(FRAME_EXTRA);
-
-  Serial.println("DESCER");
 }
