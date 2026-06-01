@@ -13,7 +13,7 @@ const int MQTT_PORTA = 8883;
 
 const char* MQTT_CLIENT_ID = "esp32_kaua_cordeiro";
 
-const char* MQTT_USUARIO = "kauac";
+const char* MQTT_USUARIO = "felipe";
 const char* MQTT_SENHA = "Senai@134";
 
 const bool MQTT_TLS = true;
@@ -142,7 +142,7 @@ const char* AWS_IOT_CLIENT_ID = "";
 const char* TOPICOS_PUBLICAR[] = {"senai134/kauac/esp32/status", "senai134/kauac/esp32/log", "senai134/esp32/projetor"};
 const int TOTAL_TOPICOS_PUBLICAR = 3;
 
-const char* TOPICOS_RECEBER[] = {"senai134/esp32/projetor", "senai134/kauac/esp32/config", "senai134/kauac/esp32/display"};
+const char* TOPICOS_RECEBER[] = {"senai134/esp32/tela", "senai134/kauac/esp32/config", "senai134/kauac/esp32/display"};
 const int TOTAL_TOPICOS_RECEBER = 3;
 
 //============================ DEBUG ============================//
