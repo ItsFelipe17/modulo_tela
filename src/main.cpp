@@ -10,7 +10,7 @@ const uint8_t PINO_TX = 7;
 const uint8_t PINO_RX = 6;
 
 // ===== TÓPICO MQTT =====
-const char TOPICO_COMANDO[] = "senai134/esp32/tela";
+const char TOPICO_COMANDO[] = "senai134/equipe/mario/devices/tela";
 
 // ===== PROTÓTIPOS ===== mqtt
 void tratarMensagemRecebida(const char *, const String &);
@@ -67,56 +67,62 @@ void tratarJsonComando(const String &mensagem)
 //* @details
 //* Numeraçao dos comandos
 //* Iremos trabalhar com dois digítos -> 00 
-//* Subir -> 01 | Descer -> 02 | Parar -> 03
+//* Subir -> 11 | Descer -> 12 | Parar -> 13
 
-// Tela do lado DIREITO - ENDERECO_DA_MINHA_TELA1 
-//* Definimos o lado DIREITO como 1 ENDERECO_DA_MINHA_TELA1 <-
-//* Então para dar comandos para ele, devemos usar
-//* Subir tela Right 11 | Descer tela Right 12 | Parar tela Right 13
-
-// Tela do lado ESQUERDO - ENDERECO_DA_MINHA_TELA2 
-//* Definimos o lado ESQUERDO como 2 ENDERECO_DA_MINHA_TELA2 <-
-//* Então para dar comandos para ele, devemos usar
-//* Subir tela LEFT 21 | Descer tela LEFT 22 | Parar tela LEFT 23
+//* Formato Json para mensagem {
+//*  "tela": 1,
+//*  "comando": 11
+//*}
 
 
-  int comando = 0;
+  uint8_t tela = 0;
+  uint8_t comando = 0;
 
-  if (doc["comando"].is<int>())
-    comando = doc["comando"].as<int>();
+if (doc["tela"].is<uint8_t>())
+{
+    tela = doc["tela"].as<uint8_t>();
+}
 
-  if (comando == 11)
-  {
-    telaRF.enviarCima(ENDERECO_DA_MINHA_TELA1);
-  }
+if (doc["comando"].is<uint8_t>())
+{
+    comando = doc["comando"].as<uint8_t>();
+}
 
-  else if (comando == 12)
-  {
-    telaRF.enviarBaixo(ENDERECO_DA_MINHA_TELA1);
-  }
+//* Formato Json para mensagem {
+//*  "tela": 1,
+//*  "comando": 11
+//*}
 
-  else if (comando == 13)
-  {
-    telaRF.enviarParar(ENDERECO_DA_MINHA_TELA1);
-  }
 
-  else if (comando == 21)
-  {
-    telaRF.enviarCima(ENDERECO_DA_MINHA_TELA2);
-  }
-
-  else if (comando == 22)
-  {
-    telaRF.enviarBaixo(ENDERECO_DA_MINHA_TELA2);
-  }
-
-  else if (comando == 23)
-  {
-    telaRF.enviarParar(ENDERECO_DA_MINHA_TELA2);
-  }
-
-  else
-  {
-    debugErro("Comando inválido");
-  }
+    if (tela == 1)
+{
+    if (comando == 11)
+    {
+        telaRF.enviarCima(ENDERECO_DA_MINHA_TELA1);
+    }
+    else if (comando == 12)
+    {
+        telaRF.enviarBaixo(ENDERECO_DA_MINHA_TELA1);
+    }
+    else if (comando == 13)
+    {
+        telaRF.enviarParar(ENDERECO_DA_MINHA_TELA1);
+    }
+}
+else if (tela == 2)
+{
+    if (comando == 11)
+    {
+        telaRF.enviarCima(ENDERECO_DA_MINHA_TELA2);
+    }
+    else if (comando == 12)
+    {
+        telaRF.enviarBaixo(ENDERECO_DA_MINHA_TELA2);
+    }
+    else if (comando == 13)
+    {
+        telaRF.enviarParar(ENDERECO_DA_MINHA_TELA2);
+    }
+}
+else debugErro("Comando inválido");
 }
