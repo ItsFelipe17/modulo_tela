@@ -1,37 +1,356 @@
+# EmissorRF MQTT
 
-This directory is intended for project header files.
+Sistema para controle de até 2 telas de projeção RF 433 MHz através de mensagens MQTT utilizando a biblioteca TelaProjecaoRF.
 
-A header file is a file containing C declarations and macro definitions
-to be shared between several project source files. You request the use of a
-header file in your project source file (C, C++, etc) located in `src` folder
-by including it, with the C preprocessing directive `#include'.
+Desenvolvido para ESP32-S3 com integração Wi-Fi, MQTT e armazenamento permanente dos endereços RF na memória flash.
+Autores:ItsFelipe17, flavio-as, judetur-gif, kauacordeirodev, tchindjiarufina.
 
-```src/main.c
+---
 
-#include "header.h"
+# Sobre o funcionamento
 
-int main (void)
+O sistema recebe comandos via MQTT em formato JSON, identifica qual tela deve ser controlada e envia o comando RF correspondente.
+
+Também possui modo de aprendizado para capturar e armazenar automaticamente o endereço RF de novos controles remotos.
+
+Fluxo de funcionamento:
+
+```text
+MQTT
+  ↓
+ESP32-S3
+  ↓
+TelaProjecaoRF
+  ↓
+Transmissor RF 433 MHz
+  ↓
+Tela motorizada
+```
+
+---
+
+# Recursos
+
+📡 Controle RF de telas de projeção 433 MHz
+
+🌐 Conexão Wi-Fi automática
+
+📨 Controle remoto via MQTT
+
+💾 Armazenamento permanente dos endereços utilizando Preferences (NVS)
+
+🎓 Modo aprendizado para capturar novos controles
+
+🎬 Controle individual ou simultâneo de múltiplas telas
+
+---
+
+# Hardware necessário
+
+| Componente           | Conexão       |
+| -------------------- | ------------- |
+| ESP32-S3             | —             |
+| Módulo RF TX 433 MHz | DATA → GPIO 7 |
+| Módulo RF RX 433 MHz | DATA → GPIO 6 |
+| Wi-Fi                | Necessário    |
+| Broker MQTT          | Necessário    |
+
+---
+
+# Configuração
+
+## Pinos RF
+
+```cpp
+const uint8_t PINO_TX = 7;
+const uint8_t PINO_RX = 6;
+```
+
+## Tópico MQTT
+
+```cpp
+const char TOPICO_COMANDO[] =
+"senai134/shared/projeto/emissor";
+```
+
+---
+
+# Inicialização
+
+```cpp
+void setup()
 {
- ...
+    conectarWiFi();
+    configurarMQTT();
+    conectarMQTT();
+
+    registrarCallbackMensagem(
+        tratarMensagemRecebida
+    );
+
+    telaRF.begin(&Serial);
+    telaRF.setInverterSinal(true);
+
+    carregarEndereco("tela1", enderecoTela1);
+    carregarEndereco("tela2", enderecoTela2);
 }
 ```
 
-Including a header file produces the same results as copying the header file
-into each source file that needs it. Such copying would be time-consuming
-and error-prone. With a header file, the related declarations appear
-in only one place. If they need to be changed, they can be changed in one
-place, and programs that include the header file will automatically use the
-new version when next recompiled. The header file eliminates the labor of
-finding and changing all the copies as well as the risk that a failure to
-find one copy will result in inconsistencies within a program.
+---
 
-In C, the convention is to give header files names that end with `.h'.
+# Loop principal
 
-Read more about using header files in official GCC documentation:
+```cpp
+void loop()
+{
+    garantirWiFiConectado();
+    garantirMQTTConectado();
+    loopMQTT();
 
-* Include Syntax
-* Include Operation
-* Once-Only Headers
-* Computed Includes
+    telaRF.update();
+}
+```
 
-https://gcc.gnu.org/onlinedocs/cpp/Header-Files.html
+A chamada:
+
+```cpp
+telaRF.update();
+```
+
+é obrigatória para que a biblioteca consiga detectar novos controles durante o modo aprendizado.
+
+---
+
+# Modo aprendizado
+
+Para cadastrar uma nova tela envie:
+
+## Tela 1
+
+```json
+{
+    "tela_1": {
+        "comando": 3
+    }
+}
+```
+
+## Tela 2
+
+```json
+{
+    "tela_2": {
+        "comando": 3
+    }
+}
+```
+
+Após receber o comando:
+
+1. O ESP entra em modo de captura.
+2. Aguarda um botão do controle original ser pressionado.
+3. Captura o endereço RF.
+4. Salva automaticamente na memória flash.
+
+Mensagem exibida:
+
+```text
+Pressione um botao do controle da tela.
+```
+
+---
+
+# Comandos MQTT
+
+## Tela 1
+
+### Subir
+
+```json
+{
+    "tela_1": {
+        "comando": 0
+    }
+}
+```
+
+### Descer
+
+```json
+{
+    "tela_1": {
+        "comando": 1
+    }
+}
+```
+
+### Parar
+
+```json
+{
+    "tela_1": {
+        "comando": 2
+    }
+}
+```
+
+### Aprender
+
+```json
+{
+    "tela_1": {
+        "comando": 3
+    }
+}
+```
+
+---
+
+## Tela 2
+
+### Subir
+
+```json
+{
+    "tela_2": {
+        "comando": 0
+    }
+}
+```
+
+### Descer
+
+```json
+{
+    "tela_2": {
+        "comando": 1
+    }
+}
+```
+
+### Parar
+
+```json
+{
+    "tela_2": {
+        "comando": 2
+    }
+}
+```
+
+### Aprender
+
+```json
+{
+    "tela_2": {
+        "comando": 3
+    }
+}
+```
+
+---
+
+## Todas as telas
+
+### Subir
+
+```json
+{
+    "telas": {
+        "comando": 0
+    }
+}
+```
+
+### Descer
+
+```json
+{
+    "telas": {
+        "comando": 1
+    }
+}
+```
+
+### Parar
+
+```json
+{
+    "telas": {
+        "comando": 2
+    }
+}
+```
+
+---
+
+# Numeração dos comandos
+
+| Comando           | Valor |
+| ----------------- | ----- |
+| Subir             | 0     |
+| Descer            | 1     |
+| Parar             | 2     |
+| Aprender endereço | 3     |
+
+---
+
+# Armazenamento dos endereços
+
+Os endereços RF são armazenados na memória flash utilizando Preferences.
+
+| Chave | Conteúdo              |
+| ----- | --------------------- |
+| tela1 | Endereço RF da Tela 1 |
+| tela2 | Endereço RF da Tela 2 |
+
+Exemplo:
+
+```cpp
+salvarEndereco("tela1", endereco);
+```
+
+---
+
+# Solução de problemas
+
+| Sintoma                  | Possível causa              | Solução                           |
+| ------------------------ | --------------------------- | --------------------------------- |
+| Tela não responde        | Endereço não aprendido      | Execute comando 3                 |
+| Tela não responde        | Inversão lógica incorreta   | Teste `setInverterSinal(false)`   |
+| Endereço não captura     | RX com sinal fraco          | Aproxime o controle               |
+| MQTT não recebe comandos | Broker desconectado         | Verifique Wi-Fi e MQTT            |
+| Aprendizado não finaliza | `update()` não está rodando | Garantir chamada contínua no loop |
+
+---
+
+# Estrutura JSON esperada
+
+```json
+{
+    "tela_1": {
+        "comando": 0
+    }
+}
+```
+
+ou
+
+```json
+{
+    "tela_2": {
+        "comando": 1
+    }
+}
+```
+
+ou
+
+```json
+{
+    "telas": {
+        "comando": 2
+    }
+}
+```
+

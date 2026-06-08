@@ -1,3 +1,11 @@
+/*
+Autores: ItsFelipe17, flavio-as, judetur-gif, kauacordeirodev, tchindjiarufina.
+Programa: Tela automatizada
+Descrição: Controle de tela automatizada por Radiofrequência
+Data: 08/06/2026
+Versão: 2.0
+*/
+
 #include <Arduino.h>
 #include "TelaProjecaoRF.h"
 #include <ArduinoJson.h>
@@ -5,6 +13,7 @@
 #include "MQTTManager.h"
 #include "DebugManager.h"
 #include <Preferences.h>
+
 
 const uint8_t PINO_TX = 7; // Emissor
 const uint8_t PINO_RX = 6; // Received
