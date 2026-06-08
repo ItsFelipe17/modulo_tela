@@ -6,11 +6,11 @@
 #include "DebugManager.h"
 #include <Preferences.h>
 
-const uint8_t PINO_TX = 7;
-const uint8_t PINO_RX = 6;
+const uint8_t PINO_TX = 7; // Emissor
+const uint8_t PINO_RX = 6; // Received
 
 // ===== TÓPICO MQTT =====
-const char TOPICO_COMANDO[] = "senai134/equipe/mario/devices/qualquer";
+const char TOPICO_COMANDO[] = "senai134/shared/projeto/emissor";
 
 // ===== PROTÓTIPOS ===== mqtt
 void tratarMensagemRecebida(const char *, const String &);
@@ -27,7 +27,11 @@ uint8_t telaAprendizado = 0;
 
 void salvarEndereco(const char *chave, const uint8_t endereco[5])
 {
+    // Abre o namespace "telas" para leitura e escrita
     preferences.begin("telas", false);
+
+    // Salva os 5 bytes do endereço usando a chave informada
+    // Exemplo: chave = "tela1"
     preferences.putBytes(chave, endereco, 5);
     preferences.end();
 }
@@ -35,16 +39,18 @@ void salvarEndereco(const char *chave, const uint8_t endereco[5])
 bool carregarEndereco(const char *chave, uint8_t endereco[5])
 {
     preferences.begin("telas", true);
-
+    // Verifica se existe um valor salvo para essa chave
+    // e se ele possui exatamente 5 bytes
     if (preferences.getBytesLength(chave) != 5)
     {
         preferences.end();
+    // Retorna false indicando que não encontrou um endereço válido
         return false;
     }
-
+    
     preferences.getBytes(chave, endereco, 5);
     preferences.end();
-
+    // Retorna true indicando que encontrou um endereço válido
     return true;
 }
 void setup()
@@ -56,7 +62,7 @@ void setup()
     registrarCallbackMensagem(tratarMensagemRecebida);
     debugInfo("Sistema pronto");
     Serial.begin(9600);
-    telaRF.begin(&Serial);         // o que está entre parênteses é o argumento que está sendo passado para a função
+    telaRF.begin(&Serial);      // &Serial permite que a biblioteca escreva mensagens no monitor serial.
     telaRF.setInverterSinal(true); // Ajuste conforme seu hardware
     carregarEndereco("tela1", enderecoTela1);
     carregarEndereco("tela2", enderecoTela2);
@@ -118,46 +124,81 @@ void tratarJsonComando(const String &mensagem)
         debugErro(erro.c_str());
         return;
     }
+    //* @details
+//* Numeraçao dos comandos
+//* Deve se adcionar o número da tela e depois o comando
+//* Se nunca usado é necessário aprender a tela 
+//* Comandos
+//* Subir -> 0 | Descer -> 1 | Parar -> 2 | Aprender -> 3
+uint8_t tela = 0;
+uint8_t comando = 0;
 
-    uint8_t tela = doc["tela"] | 0;
-    uint8_t comando = doc["comando"] | 0;
+if (doc["tela_1"])
+{
+    tela = 1;
+    comando = doc["tela_1"]["comando"] | 0;
+}
+else if (doc["tela_2"])
+{
+    tela = 2;
+    comando = doc["tela_2"]["comando"] | 0;
+}
+else if (doc["telas"])
+{
+    tela = 3;
+    comando = doc["telas"]["comando"] | 0;
+}
 
-    Serial.print("Tela: ");
-    Serial.println(tela);
 
-    Serial.print("Comando: ");
-    Serial.println(comando);
+Serial.print("Tela: ");
+Serial.println(tela);
 
-    if (comando == 1)
-    {
-        telaAprendizado = tela;
-        modoAprendizado = true;
+Serial.print("Comando: ");
+Serial.println(comando);
 
-        telaRF.iniciarLeituraEndereco();
+if (comando == 3)
+{
+    telaAprendizado = tela;
+    modoAprendizado = true;
 
-        debugInfo("Pressione um botao do controle da tela.");
-        return;
-    }
-        if (enderecoTela1 || enderecoTela2)
-            debugInfo("Endereço salvo");
-    
+    telaRF.iniciarLeituraEndereco();
 
-    if (tela == 1)
-    {
-        if (comando == 11)
-            telaRF.enviarCima(enderecoTela1);
-        else if (comando == 12)
-            telaRF.enviarBaixo(enderecoTela1);
-        else if (comando == 13)
-            telaRF.enviarParar(enderecoTela1);
-    }
-    else if (tela == 2)
-    {
-        if (comando == 11)
-            telaRF.enviarCima(enderecoTela2);
-        else if (comando == 12)
-            telaRF.enviarBaixo(enderecoTela2);
-        else if (comando == 13)
-            telaRF.enviarParar(enderecoTela2);
-    }
+    debugInfo("Pressione um botao do controle da tela.");
+    return;
+}
+
+if (tela == 1)
+{
+    if (comando == 0)
+        telaRF.enviarCima(enderecoTela1);
+    else if (comando == 1)
+        telaRF.enviarBaixo(enderecoTela1);
+    else if (comando == 2)
+        telaRF.enviarParar(enderecoTela1);
+}
+else if (tela == 2)
+{
+    if (comando == 0)
+        telaRF.enviarCima(enderecoTela2);
+    else if (comando == 1)
+        telaRF.enviarBaixo(enderecoTela2);
+    else if (comando == 2)
+        telaRF.enviarParar(enderecoTela2);
+}
+else if (tela == 3)
+{
+    if (comando == 0)
+        telaRF.enviarCima(enderecoTela1);
+    else if (comando == 1)
+        telaRF.enviarBaixo(enderecoTela1);
+    else if (comando == 2)
+        telaRF.enviarParar(enderecoTela1);
+
+    if (comando == 0)
+        telaRF.enviarCima(enderecoTela2);
+    else if (comando == 1)
+        telaRF.enviarBaixo(enderecoTela2);
+    else if (comando == 2)
+        telaRF.enviarParar(enderecoTela2);
+}
 }
