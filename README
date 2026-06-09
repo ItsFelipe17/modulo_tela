@@ -1,23 +1,27 @@
-# 🎬 Módulo Tela Automatizada (ESP32 + MQTT + RF 433 MHz)
+# Módulo Tela Automatizada (ESP32/MQTT)
 
-Biblioteca/aplicação desenvolvida para controle de telas de projeção motorizadas através de Radiofrequência (RF 433 MHz) utilizando ESP32 e MQTT.
+Biblioteca/aplicação Arduino/ESP32 para controle remoto de telas de projeção motorizadas via **MQTT + Radiofrequência 433 MHz**, permitindo integração com sistemas de automação, dashboards e controladores centralizados.
 
-Permite integração com sistemas de automação, dashboards, assistentes virtuais e controladores centralizados, possibilitando o acionamento remoto das telas através da rede.
-
-**Autores:**
-ItsFelipe17 • flavio-as • judetur-gif • kauacordeirodev • tchindjiarufina
+> Autores: ItsFelipe17, flavio-as, judetur-gif, kauacordeirodev, tchindjiarufina
+>
+> Depende de:
+>
+> * TelaProjecaoRF
+> * PubSubClient
+> * ArduinoJson
+> * Preferences
 
 ---
 
-# 📖 Visão Geral
+## Visão geral
 
 O módulo conecta-se a uma rede Wi-Fi e a um broker MQTT.
 
-Ao receber uma mensagem JSON em um tópico configurado, o ESP32 converte o comando recebido em um sinal RF compatível com a tela de projeção cadastrada.
+Ao receber mensagens JSON em um tópico MQTT configurado, converte os comandos recebidos em sinais RF compatíveis com telas de projeção motorizadas.
 
-Além do controle remoto, o sistema possui um modo de aprendizado capaz de capturar automaticamente o endereço RF do controle original da tela.
+Também possui um sistema de aprendizado capaz de capturar e armazenar o endereço RF do controle original de cada tela.
 
-## Fluxo de funcionamento
+Fluxo básico:
 
 ```text
 Sistema de Automação
@@ -29,46 +33,36 @@ Sistema de Automação
         ESP32
           │
           ▼
-   TelaProjecaoRF
+ Biblioteca TelaProjecaoRF
           │
           ▼
- Transmissor RF 433 MHz
+   Transmissor RF 433 MHz
           │
           ▼
- Tela de Projeção
+ Tela de Projeção Motorizada
 ```
 
 ---
 
-# ✨ Funcionalidades
+## Funcionalidades
 
-✅ Controle de telas motorizadas por RF 433 MHz
-
-✅ Integração com MQTT
-
-✅ Recebimento de comandos via JSON
-
-✅ Cadastro automático de telas
-
-✅ Armazenamento permanente dos endereços RF
-
-✅ Controle individual de telas
-
-✅ Controle simultâneo de múltiplas telas
-
-✅ Reconexão automática do Wi-Fi
-
-✅ Reconexão automática do MQTT
-
-✅ Sistema de logs para diagnóstico
-
-✅ Estrutura modular para expansão futura
+* ✅ Controle de telas motorizadas por RF 433 MHz.
+* ✅ Integração MQTT.
+* ✅ Recebimento de comandos via JSON.
+* ✅ Aprendizado automático de controles remotos.
+* ✅ Armazenamento permanente dos endereços RF.
+* ✅ Controle individual de múltiplas telas.
+* ✅ Controle simultâneo de todas as telas cadastradas.
+* ✅ Reconexão automática de Wi-Fi.
+* ✅ Reconexão automática de MQTT.
+* ✅ Estrutura modularizada.
+* ✅ Sistema de logs para diagnóstico.
 
 ---
 
-# 📦 Dependências
+## Instalação
 
-O projeto utiliza as seguintes bibliotecas:
+### PlatformIO
 
 ```ini
 lib_deps =
@@ -76,7 +70,7 @@ lib_deps =
     knolleary/PubSubClient
 ```
 
-Além de:
+Além das dependências:
 
 * TelaProjecaoRF
 * Preferences
@@ -84,7 +78,7 @@ Além de:
 
 ---
 
-# 📂 Estrutura do Projeto
+## Estrutura do projeto
 
 ```text
 src/
@@ -102,22 +96,22 @@ include/
 
 ---
 
-# ⚙️ Configuração
+## Configuração
 
-Todas as credenciais são definidas em:
+As credenciais e parâmetros são definidos em:
 
 ```cpp
 secrets.h
 ```
 
-## Wi-Fi
+### Wi-Fi
 
 ```cpp
-const char WIFI_SSID[] = "MinhaRede";
+const char WIFI_SSID[]  = "MinhaRede";
 const char WIFI_SENHA[] = "MinhaSenha";
 ```
 
-## MQTT
+### MQTT
 
 ```cpp
 const char MQTT_BROKER[] = "broker.exemplo.com";
@@ -126,27 +120,17 @@ const uint16_t MQTT_PORTA = 1883;
 const char MQTT_CLIENT_ID[] = "esp32_tela";
 ```
 
----
+### Tópicos
 
-# 📡 Tópicos MQTT
-
-## Tópico de Comando
-
-```text
+```cpp
 senai134/shared/projeto/emissor
 ```
 
-Todas as mensagens recebidas nesse tópico são processadas por:
-
-```cpp
-tratarJsonComando();
-```
-
 ---
 
-# 🚀 Inicialização do Sistema
+## Inicialização
 
-Durante a inicialização são executadas as seguintes etapas:
+O sistema é iniciado em:
 
 ```cpp
 void setup()
@@ -157,11 +141,11 @@ void setup()
 
     configurarDebug();
 
-    conectarMQTT();
-
     registrarCallbackMensagem(
         tratarMensagemRecebida
     );
+
+    conectarMQTT();
 
     telaRF.begin(&Serial);
 
@@ -190,19 +174,70 @@ void loop()
 
 ---
 
-# 🎯 Sistema de Aprendizado
+## Formato das mensagens MQTT
 
-O módulo pode aprender automaticamente o endereço RF de uma tela.
+### Comando para Tela 1
 
-## Como funciona
+```json
+{
+    "tela_1": {
+        "comando": 0
+    }
+}
+```
 
-1. Enviar o comando de aprendizado.
-2. O ESP32 entra em modo de escuta.
-3. Pressionar qualquer botão do controle original.
-4. O endereço RF é capturado.
-5. O endereço é armazenado permanentemente na memória interna.
+### Comando para Tela 2
 
-## Exemplo
+```json
+{
+    "tela_2": {
+        "comando": 1
+    }
+}
+```
+
+### Comando para todas as telas
+
+```json
+{
+    "telas": {
+        "comando": 2
+    }
+}
+```
+
+---
+
+## Tópico de comando
+
+```cpp
+senai134/shared/projeto/emissor
+```
+
+Toda mensagem recebida nesse tópico é processada por:
+
+```cpp
+tratarJsonComando()
+```
+
+---
+
+## Comandos suportados
+
+| Índice | Comando              |
+| ------ | -------------------- |
+| 0      | Subir                |
+| 1      | Descer               |
+| 2      | Parar                |
+| 3      | Aprender endereço RF |
+
+---
+
+## Sistema de aprendizado
+
+O módulo permite cadastrar automaticamente uma tela através do controle remoto original.
+
+### Aprender Tela 1
 
 ```json
 {
@@ -212,23 +247,39 @@ O módulo pode aprender automaticamente o endereço RF de uma tela.
 }
 ```
 
-Resposta esperada:
+### Aprender Tela 2
+
+```json
+{
+    "tela_2": {
+        "comando": 3
+    }
+}
+```
+
+Após receber o comando, o sistema exibirá:
 
 ```text
 Pressione um botão do controle da tela.
 ```
 
-Após a captura:
+Ao capturar o endereço:
 
 ```text
 Endereco da Tela 1 salvo.
 ```
 
+ou
+
+```text
+Endereco da Tela 2 salvo.
+```
+
 ---
 
-# 📨 Formato das Mensagens MQTT
+## Exemplo de publicação MQTT
 
-## Controle da Tela 1
+### Subir Tela 1
 
 ```json
 {
@@ -238,114 +289,17 @@ Endereco da Tela 1 salvo.
 }
 ```
 
-## Controle da Tela 2
+### Descer Tela 2
 
 ```json
 {
     "tela_2": {
-        "comando": 0
-    }
-}
-```
-
-## Controle de Todas as Telas
-
-```json
-{
-    "telas": {
-        "comando": 0
-    }
-}
-```
-
----
-
-# 🎮 Comandos Disponíveis
-
-| Código | Comando           |
-| ------ | ----------------- |
-| 0      | Subir             |
-| 1      | Descer            |
-| 2      | Parar             |
-| 3      | Aprender endereço |
-
----
-
-# 📋 Exemplos de Uso
-
-## Subir Tela 1
-
-```json
-{
-    "tela_1": {
-        "comando": 0
-    }
-}
-```
-
----
-
-## Descer Tela 1
-
-```json
-{
-    "tela_1": {
         "comando": 1
     }
 }
 ```
 
----
-
-## Parar Tela 1
-
-```json
-{
-    "tela_1": {
-        "comando": 2
-    }
-}
-```
-
----
-
-## Aprender endereço da Tela 1
-
-```json
-{
-    "tela_1": {
-        "comando": 3
-    }
-}
-```
-
----
-
-## Subir todas as telas
-
-```json
-{
-    "telas": {
-        "comando": 0
-    }
-}
-```
-
----
-
-## Descer todas as telas
-
-```json
-{
-    "telas": {
-        "comando": 1
-    }
-}
-```
-
----
-
-## Parar todas as telas
+### Parar todas as telas
 
 ```json
 {
@@ -357,27 +311,21 @@ Endereco da Tela 1 salvo.
 
 ---
 
-# 📶 Sistema MQTT
+## Sistema de MQTT
 
-## Conectar ao Broker
+### Conexão
 
 ```cpp
 conectarMQTT();
 ```
 
-## Reconexão Automática
+### Reconexão automática
 
 ```cpp
 garantirMQTTConectado();
 ```
 
-## Loop MQTT
-
-```cpp
-loopMQTT();
-```
-
-## Registro de Callback
+### Recebimento de mensagens
 
 ```cpp
 registrarCallbackMensagem(
@@ -387,21 +335,21 @@ registrarCallbackMensagem(
 
 ---
 
-# 📡 Sistema Wi-Fi
+## Sistema de Wi-Fi
 
-## Conectar
+### Conectar
 
 ```cpp
 conectarWiFi();
 ```
 
-## Verificar conexão
+### Verificar conexão
 
 ```cpp
 WiFiEstaConectado();
 ```
 
-## Reconectar automaticamente
+### Reconexão automática
 
 ```cpp
 garantirWiFiConectado();
@@ -409,33 +357,35 @@ garantirWiFiConectado();
 
 ---
 
-# 📝 Logs do Sistema
+## Logs
 
-Exemplos de mensagens exibidas:
+O sistema utiliza o módulo DebugManager.
+
+Exemplo:
 
 ```text
 [INFO] Sistema pronto
-
 [INFO] Enderecos carregados
+[INFO] Mensagem MQTT recebida
+```
 
+Aprendizado:
+
+```text
 [INFO] Pressione um botao do controle da tela
-
 [INFO] Endereco da Tela 1 salvo
 ```
 
-Mensagens de erro:
+Erros:
 
 ```text
 [ERRO] Erro na estrutura JSON
-
 [ERRO] MQTT desconectado
-
-[ERRO] Endereco nao encontrado
 ```
 
 ---
 
-# 🔄 Fluxo de Processamento
+## Fluxo de processamento
 
 ```text
 MQTT
@@ -456,7 +406,7 @@ Identificação do Comando
 TelaProjecaoRF
  │
  ▼
-Transmissão RF 433 MHz
+Transmissão RF
  │
  ▼
 Tela Motorizada
@@ -464,9 +414,9 @@ Tela Motorizada
 
 ---
 
-# 💡 Exemplo Completo
+## Exemplo completo
 
-### Publicação MQTT
+Publicação MQTT:
 
 ```json
 {
@@ -476,7 +426,7 @@ Tela Motorizada
 }
 ```
 
-### Processamento
+Processamento:
 
 ```cpp
 telaRF.enviarCima(
@@ -484,7 +434,7 @@ telaRF.enviarCima(
 );
 ```
 
-### Resultado
+Resultado:
 
 ```text
 A Tela 1 sobe.
@@ -492,8 +442,9 @@ A Tela 1 sobe.
 
 ---
 
-# 📜 Licença
+## Versão
 
-Projeto desenvolvido para fins educacionais e integração de sistemas de automação utilizando ESP32, MQTT e RF 433 MHz.
-
-Sinta-se livre para utilizar, modificar e expandir conforme a necessidade do seu projeto.
+```text
+Versão: 2.0
+Data: 08/06/2026
+```
