@@ -14,7 +14,6 @@ Versão: 2.0
 #include "DebugManager.h"
 #include <Preferences.h>
 
-
 const uint8_t PINO_TX = 7; // Emissor
 const uint8_t PINO_RX = 6; // Received
 
@@ -24,6 +23,8 @@ const char TOPICO_COMANDO[] = "senai134/shared/projeto/emissor";
 // ===== PROTÓTIPOS ===== mqtt
 void tratarMensagemRecebida(const char *, const String &);
 void tratarJsonComando(const String &);
+void enviarHandshakeTela();
+void obterCodigoControle();
 
 TelaProjecaoRF telaRF(PINO_TX, PINO_RX);
 Preferences preferences;
@@ -31,142 +32,155 @@ Preferences preferences;
 uint8_t enderecoTela1[5] = {0};
 uint8_t enderecoTela2[5] = {0};
 
+bool statusHandshake = false;
 bool modoAprendizado = false;
 uint8_t telaAprendizado = 0;
 
 void salvarEndereco(const char *chave, const uint8_t endereco[5])
 {
-    // Abre o namespace "telas" para leitura e escrita
-    preferences.begin("telas", false);
+  // Abre o namespace "telas" para leitura e escrita
+  preferences.begin("telas", false);
 
-    // Salva os 5 bytes do endereço usando a chave informada
-    // Exemplo: chave = "tela1"
-    preferences.putBytes(chave, endereco, 5);
-    preferences.end();
+  // Salva os 5 bytes do endereço usando a chave informada
+  // Exemplo: chave = "tela1"
+  preferences.putBytes(chave, endereco, 5);
+  preferences.end();
 }
 
 bool carregarEndereco(const char *chave, uint8_t endereco[5])
 {
-    preferences.begin("telas", true);
-    // Verifica se existe um valor salvo para essa chave
-    // e se ele possui exatamente 5 bytes
-    if (preferences.getBytesLength(chave) != 5)
-    {
-        preferences.end();
-    // Retorna false indicando que não encontrou um endereço válido
-        return false;
-    }
-    
-    preferences.getBytes(chave, endereco, 5);
+  preferences.begin("telas", true);
+  // Verifica se existe um valor salvo para essa chave
+  // e se ele possui exatamente 5 bytes
+  if (preferences.getBytesLength(chave) != 5)
+  {
     preferences.end();
-    // Retorna true indicando que encontrou um endereço válido
-    return true;
+    // Retorna false indicando que não encontrou um endereço válido
+    return false;
+  }
+
+  preferences.getBytes(chave, endereco, 5);
+  preferences.end();
+  // Retorna true indicando que encontrou um endereço válido
+  return true;
 }
 void setup()
 {
-    conectarWiFi();
-    configurarMQTT();
-    configurarDebug();
-    conectarMQTT();
-    registrarCallbackMensagem(tratarMensagemRecebida);
-    debugInfo("Sistema pronto");
-    Serial.begin(9600);
-    telaRF.begin(&Serial);      // &Serial permite que a biblioteca escreva mensagens no monitor serial.
-    telaRF.setInverterSinal(true); // Ajuste conforme seu hardware
-    carregarEndereco("tela1", enderecoTela1);
-    carregarEndereco("tela2", enderecoTela2);
-    debugInfo("Enderecos carregados.");
+  conectarWiFi();
+  configurarMQTT();
+  configurarDebug();
+  conectarMQTT();
+  registrarCallbackMensagem(tratarMensagemRecebida);
+  debugInfo("Sistema pronto");
+  Serial.begin(9600);
+  telaRF.begin(&Serial);         // &Serial permite que a biblioteca escreva mensagens no monitor serial.
+  telaRF.setInverterSinal(true); // Ajuste conforme seu hardware
+  carregarEndereco("tela1", enderecoTela1);
+  carregarEndereco("tela2", enderecoTela2);
+  debugInfo("Enderecos carregados.");
 }
 
 void loop()
 {
-    garantirWiFiConectado();
-    garantirMQTTConectado();
-    loopMQTT();
-    telaRF.update(); // Obrigatório
-    if (modoAprendizado &&
-        telaRF.enderecoCapturadoDisponivel())
-    {
-        uint8_t endereco[5];
+  garantirWiFiConectado();
+  garantirMQTTConectado();
+  loopMQTT();
+  obterCodigoControle();
+  enviarHandshakeTela();
 
-        if (telaRF.obterEnderecoCapturado(endereco))
-        {
-            if (telaAprendizado == 1)
-            {
-                memcpy(enderecoTela1, endereco, 5);
-                salvarEndereco("tela1", enderecoTela1);
-
-                debugInfo("Endereco da Tela 1 salvo.");
-            }
-            else if (telaAprendizado == 2)
-            {
-                memcpy(enderecoTela2, endereco, 5);
-                salvarEndereco("tela2", enderecoTela2);
-
-                debugInfo("Endereco da Tela 2 salvo.");
-            }
-
-            modoAprendizado = false;
-            telaAprendizado = 0;
-        }
-    }
+  telaRF.update(); // Obrigatório
 }
+
+void obterCodigoControle()
+{
+  if (modoAprendizado &&
+      telaRF.enderecoCapturadoDisponivel())
+  {
+    uint8_t endereco[5];
+
+    if (telaRF.obterEnderecoCapturado(endereco))
+    {
+      if (telaAprendizado == 1)
+      {
+        memcpy(enderecoTela1, endereco, 5);
+        salvarEndereco("tela1", enderecoTela1);
+
+        debugInfo("Endereco da Tela 1 salvo.");
+      }
+      else if (telaAprendizado == 2)
+      {
+        memcpy(enderecoTela2, endereco, 5);
+        salvarEndereco("tela2", enderecoTela2);
+
+        debugInfo("Endereco da Tela 2 salvo.");
+      }
+
+      modoAprendizado = false;
+      telaAprendizado = 0;
+    }
+  }
+}
+
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
-    if (strcmp(topico, TOPICO_COMANDO) != 0)
-    {
-        return;
-    }
+  if (strcmp(topico, TOPICO_COMANDO) != 0)
+  {
+    return;
+  }
 
-    tratarJsonComando(mensagem);
+  tratarJsonComando(mensagem);
 }
 
 void tratarJsonComando(const String &mensagem)
 {
-    JsonDocument doc;
+  JsonDocument doc;
 
-    DeserializationError erro = deserializeJson(doc, mensagem);
+  DeserializationError erro = deserializeJson(doc, mensagem);
 
-    if (erro)
-    {
-        debugErro("Erro na estrutura JSON.");
-        debugErro(erro.c_str());
-        return;
-    }
-    //* @details
-//* Numeraçao dos comandos
-//* Deve se adcionar o número da tela e depois o comando
-//* Se nunca usado é necessário aprender a tela 
-//* Comandos
-//* Subir -> 0 | Descer -> 1 | Parar -> 2 | Aprender -> 3
-uint8_t tela = 0;
-uint8_t comando = 0;
+  if (erro)
+  {
+    debugErro("Erro na estrutura JSON.");
+    debugErro(erro.c_str());
+    return;
+  }
+  //* @details
+  //* Numeraçao dos comandos
+  //* Deve se adcionar o número da tela e depois o comando
+  //* Se nunca usado é necessário aprender a tela
+  //* Comandos
+  //* Subir -> 0 | Descer -> 1 | Parar -> 2 | Aprender -> 3
+  uint8_t tela = 0;
+  uint8_t comando = 0;
 
-if (doc["tela_1"])
-{
+  if (doc["tela_1"])
+  {
     tela = 1;
     comando = doc["tela_1"]["comando"] | 0;
-}
-else if (doc["tela_2"])
-{
+  }
+  else if (doc["tela_2"])
+  {
     tela = 2;
     comando = doc["tela_2"]["comando"] | 0;
-}
-else if (doc["telas"])
-{
+  }
+  else if (doc["telas"])
+  {
     tela = 3;
     comando = doc["telas"]["comando"] | 0;
-}
+  }
+  else
+  {
+    debugErro("Tela inválida. Verifique o Json.");
+    return;
+  }
 
+  Serial.print("Tela: ");
+  Serial.println(tela);
 
-Serial.print("Tela: ");
-Serial.println(tela);
+  Serial.print("Comando: ");
+  Serial.println(comando);
 
-Serial.print("Comando: ");
-Serial.println(comando);
-
-if (comando == 3)
-{
+  if (comando == 3)
+  {
     telaAprendizado = tela;
     modoAprendizado = true;
 
@@ -174,40 +188,56 @@ if (comando == 3)
 
     debugInfo("Pressione um botao do controle da tela.");
     return;
+  }
+
+  statusHandshake = true;
+  if (tela == 1)
+  {
+    if (comando == 0)
+      telaRF.enviarCima(enderecoTela1);
+    else if (comando == 1)
+      telaRF.enviarBaixo(enderecoTela1);
+    else if (comando == 2)
+      telaRF.enviarParar(enderecoTela1);
+  }
+  else if (tela == 2)
+  {
+    if (comando == 0)
+      telaRF.enviarCima(enderecoTela2);
+    else if (comando == 1)
+      telaRF.enviarBaixo(enderecoTela2);
+    else if (comando == 2)
+      telaRF.enviarParar(enderecoTela2);
+  }
+  else if (tela == 3)
+  {
+    if (comando == 0)
+      telaRF.enviarCima(enderecoTela1);
+    else if (comando == 1)
+      telaRF.enviarBaixo(enderecoTela1);
+    else if (comando == 2)
+      telaRF.enviarParar(enderecoTela1);
+
+    if (comando == 0)
+      telaRF.enviarCima(enderecoTela2);
+    else if (comando == 1)
+      telaRF.enviarBaixo(enderecoTela2);
+    else if (comando == 2)
+      telaRF.enviarParar(enderecoTela2);
+  }
 }
 
-if (tela == 1)
+void enviarHandshakeTela()
 {
-    if (comando == 0)
-        telaRF.enviarCima(enderecoTela1);
-    else if (comando == 1)
-        telaRF.enviarBaixo(enderecoTela1);
-    else if (comando == 2)
-        telaRF.enviarParar(enderecoTela1);
-}
-else if (tela == 2)
-{
-    if (comando == 0)
-        telaRF.enviarCima(enderecoTela2);
-    else if (comando == 1)
-        telaRF.enviarBaixo(enderecoTela2);
-    else if (comando == 2)
-        telaRF.enviarParar(enderecoTela2);
-}
-else if (tela == 3)
-{
-    if (comando == 0)
-        telaRF.enviarCima(enderecoTela1);
-    else if (comando == 1)
-        telaRF.enviarBaixo(enderecoTela1);
-    else if (comando == 2)
-        telaRF.enviarParar(enderecoTela1);
+  if (statusHandshake)
+  {
+    JsonDocument doc;
+    String mensagem;
 
-    if (comando == 0)
-        telaRF.enviarCima(enderecoTela2);
-    else if (comando == 1)
-        telaRF.enviarBaixo(enderecoTela2);
-    else if (comando == 2)
-        telaRF.enviarParar(enderecoTela2);
-}
+    doc["handshake"]["situacao"] = statusHandshake;
+    serializeJson(doc, mensagem);
+    publicarMensagemNoTopico(0, mensagem.c_str());
+
+    statusHandshake = false;
+  }
 }
