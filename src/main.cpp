@@ -260,6 +260,7 @@ void tratarJsonComando(const String &mensagem)
       modoAprendizado = true;
       obterCodigoControle();
     }
+    else debugErro("Erro ao programar controle remoto. O valor indicado para a tela é inválido.");
   } break;
 
   default:
