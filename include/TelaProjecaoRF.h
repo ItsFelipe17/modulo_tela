@@ -55,7 +55,7 @@ private:
     static constexpr uint32_t SYNC_MINIMO = 3500;
     static constexpr uint32_t SYNC_MAXIMO = 9000;
     static constexpr uint32_t TEMPO_SILENCIO_FIM_QUADRO = 18000;
-    static constexpr uint8_t REPETICOES_ENVIO = 50;
+    static constexpr uint8_t REPETICOES_ENVIO = 8;
 
     struct QuadroCapturado
     {
