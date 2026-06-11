@@ -91,6 +91,32 @@ void loop()
   telaRF.update(); // Obrigatório
 }
 
+void obterCodigoControle() {
+  if (modoAprendizado && telaRF.enderecoCapturadoDisponivel()) {
+    uint8_t endereco[5];
+
+    if (telaRF.obterEnderecoCapturado(endereco)) {
+      switch (telaAprendizado) {
+      case 1: {
+        memcpy(enderecoTela1, endereco, 5);
+        salvarEndereco("tela1", enderecoTela1);
+
+        debugInfo("Endereco da Tela 1 salvo.");
+      } break;
+      case 2: {
+        memcpy(enderecoTela2, endereco, 5);
+        salvarEndereco("tela2", enderecoTela2);
+
+        debugInfo("Endereco da Tela 2 salvo.");
+      }
+      }
+      modoAprendizado = false;
+      telaAprendizado = 0;
+    }
+  }
+}
+
+/*
 void obterCodigoControle()
 {
   if (modoAprendizado &&
@@ -120,6 +146,7 @@ void obterCodigoControle()
     }
   }
 }
+*/
 
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
@@ -143,15 +170,104 @@ void tratarJsonComando(const String &mensagem)
     debugErro(erro.c_str());
     return;
   }
-  //* @details
-  //* Numeraçao dos comandos
-  //* Deve se adcionar o número da tela e depois o comando
-  //* Se nunca usado é necessário aprender a tela
-  //* Comandos
-  //* Subir -> 0 | Descer -> 1 | Parar -> 2 | Aprender -> 3
-  uint8_t tela = 0;
-  uint8_t comando = 0;
 
+  /*
+ // @details
+ // Numeraçao dos comandos
+ // Deve se adcionar o número da tela e depois o comando
+ // Se nunca usado é necessário aprender a tela
+ // Comandos
+ // Subir -> 0 | Descer -> 1 | Parar -> 2 | Aprender -> 3
+   */
+
+  // uint8_t tela = 0;
+
+  /**
+   * Se o valor de {comando} for:
+   * 
+   * 1, tela 1 subirá;
+   * 2, tela 1 descerá;
+   * 3, movimento de tela 1 parará;
+   * 4, tela 2 subirá;
+   * 5, tela 2 descerá;
+   * 6, movimento de tela 2 parará;
+   * 7, ambas as telas subirão;
+   * 8, ambas descerão;
+   * 9, o movimento de ambas parará.
+   * 
+   * Se o valor de {comando} for 0:
+   * 
+   * Aprendizado se iniciará em {telaAprendizado}.
+   * 
+   */
+
+  uint8_t comando = 11;
+
+  if (doc["tela"]["comando"].is<int>()) {
+    comando = doc["tela"]["comando"].as<int>();
+  }
+
+  else {
+    debugErro("Comando inválido. Verifique o Json.");
+    return;
+  }
+
+  statusHandshake = true;
+
+  switch (comando) {
+  case 1:
+  telaRF.enviarCima(enderecoTela1);
+  break;
+  
+  case 2:
+  telaRF.enviarBaixo(enderecoTela1);
+  break;
+  
+  case 3:
+  telaRF.enviarParar(enderecoTela1);
+  break;
+  
+  case 4:
+  telaRF.enviarCima(enderecoTela2);
+  break;
+  
+  case 5:
+  telaRF.enviarBaixo(enderecoTela2);
+  break;
+  
+  case 6:
+  telaRF.enviarParar(enderecoTela2);
+  break;
+  
+  case 7: {
+    telaRF.enviarCima(enderecoTela1);
+    telaRF.enviarCima(enderecoTela2);
+  } break;
+  
+  case 8: {
+    telaRF.enviarBaixo(enderecoTela1);
+    telaRF.enviarBaixo(enderecoTela2);
+  } break;
+  
+  case 9: {
+    telaRF.enviarParar(enderecoTela1);
+    telaRF.enviarParar(enderecoTela2);
+  } break;
+
+  case 0: {
+    if (doc["tela"]["comando"]["telaAprendizado"].is<int>()) {
+      telaAprendizado = doc["tela"]["comando"]["telaAprendizado"].as<int>();
+      modoAprendizado = true;
+      obterCodigoControle();
+    }
+  } break;
+
+  default:
+  debugErro("Comando inválido");
+  }
+
+
+  /*
   if (doc["tela_1"])
   {
     tela = 1;
@@ -173,12 +289,15 @@ void tratarJsonComando(const String &mensagem)
     return;
   }
 
-  Serial.print("Tela: ");
-  Serial.println(tela);
+  // debugInfo("Tela: ");
+  // debugInfo(String(tela));
 
-  Serial.print("Comando: ");
-  Serial.println(comando);
+  */
 
+  debugInfo("Comando: ");
+  debugInfo(String(comando));
+  
+  /*
   if (comando == 3)
   {
     telaAprendizado = tela;
@@ -225,8 +344,8 @@ void tratarJsonComando(const String &mensagem)
     else if (comando == 2)
       telaRF.enviarParar(enderecoTela2);
   }
+  */
 }
-
 void enviarHandshakeTela()
 {
   if (statusHandshake)
