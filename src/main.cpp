@@ -250,8 +250,10 @@ void enviarHandshakeTela()
     JsonDocument doc;
     String mensagem;
 
+    time_t timestamp = time(nullptr);
+
     doc["statusComando"]["comando"] = comando;
-    doc["statusComando"]["situacao"] = statusHandshake;
+    doc["statusComando"]["timestamp"] = timestamp;
 
     serializeJson(doc, mensagem);
     publicarMensagemNoTopico(0, mensagem.c_str());
